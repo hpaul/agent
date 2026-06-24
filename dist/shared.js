@@ -1,0 +1,75 @@
+export const DEFAULT_RECENT_MESSAGES = 100;
+/** Default input-token trigger for Anthropic compaction (documented minimum). */
+export const DEFAULT_COMPACTION_TRIGGER_TOKENS = 50_000;
+/**
+ * Recent-message window used when compaction is enabled but `recentMessages` is
+ * left unset: large enough for the full history to reach the compaction trigger
+ * and to retain the stored compaction summary on later turns.
+ */
+export const DEFAULT_COMPACTION_RECENT_MESSAGES = 1000;
+export function isTool(message) {
+    return (message.role === "tool" ||
+        (message.role === "assistant" &&
+            Array.isArray(message.content) &&
+            message.content.some((c) => c.type === "tool-call")));
+}
+export function extractText(message) {
+    switch (message.role) {
+        case "user":
+            if (typeof message.content === "string") {
+                return message.content;
+            }
+            return joinText(message.content);
+        case "assistant":
+            if (typeof message.content === "string") {
+                return message.content;
+            }
+            else {
+                return joinText(message.content) || undefined;
+            }
+        case "system":
+            return message.content;
+        // we don't extract text from tool messages
+    }
+    return undefined;
+}
+export function joinText(parts) {
+    return parts
+        .filter((p) => p.type === "text")
+        .map((p) => p.text)
+        .filter(Boolean)
+        .join(" ");
+}
+export function extractReasoning(message) {
+    if (typeof message.content === "string") {
+        return undefined;
+    }
+    return message.content
+        .filter((c) => c.type === "reasoning")
+        .map((c) => c.text)
+        .join(" ");
+}
+export const DEFAULT_MESSAGE_RANGE = { before: 2, after: 1 };
+export function sorted(messages, order = "asc") {
+    return [...messages].sort(order === "asc"
+        ? (a, b) => a.order - b.order || a.stepOrder - b.stepOrder
+        : (a, b) => b.order - a.order || b.stepOrder - a.stepOrder);
+}
+export function getModelName(embeddingModel) {
+    if (typeof embeddingModel === "string") {
+        if (embeddingModel.includes("/")) {
+            return embeddingModel.split("/").slice(1).join("/");
+        }
+        return embeddingModel;
+    }
+    return "modelId" in embeddingModel
+        ? embeddingModel.modelId
+        : embeddingModel.model;
+}
+export function getProviderName(embeddingModel) {
+    if (typeof embeddingModel === "string") {
+        return embeddingModel.split("/").at(0);
+    }
+    return embeddingModel.provider;
+}
+//# sourceMappingURL=shared.js.map
